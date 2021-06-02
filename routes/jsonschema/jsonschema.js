@@ -2,79 +2,42 @@ const express = require("express");
 const ExpressError = require("../../errorClass");
 const router = express.Router();
 const db = require("../../db");
+const jsonschema = require("jsonschema");
+const bookSchema = require("../../schemas/bookSchema.json")
+const Book = require("../../models/book")
 
 
 
-router.get('/', async (req, res, next) => {
-    try{
-    const results = await db.query('');
-    return res.json({ users: results.rows });
-    }
-    catch (err){
-    return next(err)
-    }
-});
-
-router.get('/search', async (req, res, next) =>{
-    try{
-        const { type } = req.query;
-        const results = await db.query('SELECT * FROM users WHERE type=jsonschema', [type])
-        return res.json(results.rows);
-    } catch (err) {
+router.get("/", function (req, res, next){
+    const testSchema = jsonschema.validate(req.body, bookSchema);
+    if (!testSchema.valid){
+        const listOfErrors = testSchema.errors.map(e => e.stack);
+        const err = new ExpressError(listOfErrors, 400)
+        console.log(listOfErrors)
         return next(err)
     }
+    return res.json("That is valid")
 })
 
-router.get('/:id', async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const results = await db.query('SELECT * FROM users WHERE id=jsonschema', [id])
-        if (results.rows.length === 0){
-            throw new ExpressError("jsonschema", 404)
-        }
-        return res.send({user: results.rows[0]})
-    } catch(e) {
-        return next(e)
-    }
-})
-
-router.post('/', async (req, res, next) => {
-    try {
-        const { name, type } = req.body;
-        const results = await db.query('INSERT INTO users (name, type) VALUES (jsonschema, jsonschema) RETURNING id, name, type', [name, type]);
-        return res.status(201).json({user: results.rows[0]})
-    } catch(e) {
-        return next(e)
-    }
-})
-
-router.patch('/:id', async (req, res, next) => {
-    try {
-        const { id } = req.params;
-        const { name, type } = req.body;
-        const results = await db.query('UPDATE users SET name=jsonschema, type=jsonschema WHERE id= RETURNING id, name, type', [
-            name, type, id])
-        if (results.rows.length === 0){
-            throw new ExpressError("jsonschema", 404)
-        }
-            return res.send({ user: results.rows[0]})
-    } catch(e) {
-        return next(e)
-    }
-})
-
-router.delete('/:id', async(req, res, next) =>{
+router.post("/", async (req, res, next) => {
+    const testSchema = jsonschema.validate(req.body, bookSchema);
     try{
-        const { id } = req.params;
-        const results = await db.query('DELETE FROM users WHERE id=jsonschema RETURNING id', [id])
-        if (results.rows.length === 0){
-            throw new ExpressError("jsonschema", 404)
+        if (!testSchema.valid){
+            const listOfErrors = testSchema.errors.map(e => e.stack);
+            const err = new ExpressError(listOfErrors, 400)
+            console.log(listOfErrors)
+            return next(err)
         }
-        return res.send({msg: "Deleted"})
-    } catch(e) {
+        let bookPosted = await Book.add(req.body.book)
+        return res.json(bookPosted)
+    }   
+    catch(e){
         return next(e)
     }
+
+
+
 })
+
 
 module.exports = router;
-
